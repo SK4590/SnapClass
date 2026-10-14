@@ -1,8 +1,13 @@
-# 📸 SnapClass – AI-Powered Smart Attendance System
+<p align="center">
+  <img src="https://i.ibb.co/YTYGn5qV/logo.png" alt="SnapClass Logo" width="100" />
+</p>
 
-![SnapClass Banner](https://i.ibb.co/YTYGn5qV/logo.png)
+<h1 align="center">SnapClass – AI-Powered Smart Attendance System</h1>
 
-An intelligent, full-stack biometric attendance management system built with **Streamlit**, **Supabase (PostgreSQL)**, and **Computer Vision (dlib / Face Recognition)**. 
+<p align="center">
+  <b>An intelligent, full-stack biometric attendance management system</b><br>
+  Built with <b>Streamlit</b>, <b>Supabase (PostgreSQL)</b>, and <b>Computer Vision (dlib / Face Recognition)</b>
+</p>
 
 SnapClass replaces cumbersome manual paper attendance and roll calls with instant facial recognition and QR-code enrollment.
 
