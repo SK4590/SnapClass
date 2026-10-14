@@ -3,12 +3,16 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 
+import numpy as np
 from src.components.dialog_add_photo import add_photos_dialog
+from src.components.dialog_attendance_results import attendance_result_dialog
 from src.components.dialog_create_subject import create_subject_dialog
 from src.components.dialog_share_subject import share_subject_dialog
+from src.components.dialog_voice_attendance import voice_attendance_dialog
 from src.components.footer import footer_dashboard
 from src.components.header import header_dashboard
 from src.components.subject_card import subject_card
+from src.database.config import supabase
 from src.database.db import (
     check_teacher_exists,
     create_teacher,
@@ -16,6 +20,7 @@ from src.database.db import (
     get_teacher_subjects,
     teacher_login,
 )
+from src.pipelines.face_pipeline import predict_attendance
 from src.ui.style_base_layout import style_background_dashboard, style_base_layout
 
 
@@ -399,7 +404,53 @@ def teacher_tab_take_attendance():
             icon=":material/analytics:",
             disabled=not has_photos,
         ):
-            st.info("Face Recognition AI pipeline will be connected in Phase D!")
+            with st.spinner("Deep scanning classroom photos..."):
+                all_detected_ids = {}
+
+                for idx, img in enumerate(st.session_state.attendance_images):
+                    img_np = np.array(img.convert("RGB"))
+                    detected, _, _ = predict_attendance(img_np)
+
+                    if detected:
+                        for sid in detected.keys():
+                            all_detected_ids.setdefault(sid, []).append(f"Photo {idx+1}")
+
+                enrolled_res = (
+                    supabase.table("subject_students")
+                    .select("*, students(*)")
+                    .eq("subject_id", selected_subject_id)
+                    .execute()
+                )
+                enrolled_students = enrolled_res.data
+
+                if not enrolled_students:
+                    st.warning("No students enrolled in this course yet.")
+                else:
+                    results, attendance_to_log = [], []
+                    current_timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+
+                    for node in enrolled_students:
+                        student = node.get("students")
+                        if not student:
+                            continue
+                        sources = all_detected_ids.get(student["student_id"], [])
+                        is_present = len(sources) > 0
+
+                        results.append({
+                            "Name": student["name"],
+                            "ID": student["student_id"],
+                            "Source": ", ".join(sources) if is_present else "-",
+                            "Status": "✅ Present" if is_present else "❌ Absent",
+                        })
+
+                        attendance_to_log.append({
+                            "student_id": student["student_id"],
+                            "subject_id": selected_subject_id,
+                            "timestamp": current_timestamp,
+                            "is_present": bool(is_present),
+                        })
+
+                    attendance_result_dialog(pd.DataFrame(results), attendance_to_log)
 
     with c3:
         if st.button(
@@ -408,7 +459,7 @@ def teacher_tab_take_attendance():
             type="secondary",
             icon=":material/mic:",
         ):
-            st.info("Voice Attendance pipeline will be connected in Phase D!")
+            voice_attendance_dialog(selected_subject_id)
 
 
 def teacher_tab_attendance_records():
